@@ -45,8 +45,8 @@ func Start() {
 	templates = template.Must(template.ParseGlob(templateDir + "pages/*.gohtml"))
 	templates = template.Must(templates.ParseGlob(templateDir + "partials/*.gohtml"))
 	// 이 핸들러가 동작하기 전에 gohtml은 rendering이 되어있어야 한다.
-	http.HandleFunc("/", home)
 	http.HandleFunc("/add", add)
+	http.HandleFunc("/", home)
 	fmt.Printf("Listening on http://localhost%s\n", PORT)
 	log.Fatal(http.ListenAndServe(PORT, nil))
 }
