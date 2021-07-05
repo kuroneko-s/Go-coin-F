@@ -10,7 +10,7 @@ import (
 type Block struct {
 	Data     string `json:"data"`
 	Hash     string `json:"hash"`
-	PrevHash string `json:"prevHash,omitempty"`
+	PrevHash string `json:"preHash,omitempty"`
 	Height   int    `json:"height"`
 }
 
@@ -20,7 +20,7 @@ type blockchain struct {
 
 var b *blockchain
 var once sync.Once
-var ErrLenHandle = errors.New("Not found Block")
+var ErrNotFound = errors.New("block not found")
 
 func (b *Block) calculateHash() {
 	hash := sha256.Sum256([]byte(b.Data + b.PrevHash))
@@ -36,7 +36,7 @@ func getLastHash() string {
 }
 
 func createBlock(data string) *Block {
-	newBlock := Block{data, "", getLastHash(), len(AllBlocks()) + 1}
+	newBlock := Block{data, "", getLastHash(), len(GetBlockchain().blocks) + 1}
 	newBlock.calculateHash()
 
 	return &newBlock
@@ -61,9 +61,10 @@ func AllBlocks() []*Block {
 	return GetBlockchain().blocks
 }
 
-func (b blockchain) GetBlock(id int) (*Block, error) {
-	if id > len(b.blocks) || id == 0 {
-		return nil, ErrLenHandle
+func (b blockchain) GetBlock(height int) (*Block, error) {
+	if height > len(b.blocks) {
+		return nil, ErrNotFound
 	}
-	return b.blocks[id-1], nil
+
+	return b.blocks[height-1], nil
 }

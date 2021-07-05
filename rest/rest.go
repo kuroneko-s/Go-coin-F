@@ -61,6 +61,7 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 			Description: "Get a Block",
 		},
 	}
+	rw.Header().Add("Content-Type", "application/json")
 	// simple version
 	json.NewEncoder(rw).Encode(data)
 	/*
@@ -89,7 +90,7 @@ func getBlock(rw http.ResponseWriter, r *http.Request) {
 	utils.HandleErr(err)
 
 	block, err := blockchain.GetBlockchain().GetBlock(id)
-	if err == blockchain.ErrLenHandle {
+	if err == blockchain.ErrNotFound {
 		json.NewEncoder(rw).Encode(fmt.Sprint(err))
 	} else {
 		json.NewEncoder(rw).Encode(block)
@@ -106,7 +107,6 @@ func writeContentTypeMiddleware(next http.Handler) http.Handler {
 func Start(aPort int) {
 	router := mux.NewRouter()
 	port = fmt.Sprintf(":%d", aPort)
-	router.Use(writeContentTypeMiddleware)
 	router.HandleFunc("/", documentation).Methods("GET")
 	router.HandleFunc("/blocks", blocks).Methods("GET", "POST")
 	router.HandleFunc("/blocks/{height:[0-9]+}", getBlock).Methods("GET")

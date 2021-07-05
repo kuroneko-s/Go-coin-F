@@ -38,12 +38,13 @@ func add(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func Start(port int) {
+func Start(aPort int) {
+	handler := http.NewServeMux()
 	templates = template.Must(template.ParseGlob(templateDir + "pages/*.gohtml"))
 	templates = template.Must(templates.ParseGlob(templateDir + "partials/*.gohtml"))
 	// 이 핸들러가 동작하기 전에 gohtml은 rendering이 되어있어야 한다.
-	http.HandleFunc("/", home)
-	http.HandleFunc("/add", add)
-	fmt.Printf("Listening on http://localhost:%d\n", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprint(port), nil))
+	handler.HandleFunc("/add", add)
+	handler.HandleFunc("/", home)
+	fmt.Printf("Listening on http://localhost:%d\n", aPort)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", aPort), handler))
 }
