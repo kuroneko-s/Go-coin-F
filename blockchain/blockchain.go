@@ -28,11 +28,11 @@ func (b *Block) calculateHash() {
 }
 
 func getLastHash() string {
-	totalBlocks := len(GetBlockchain().blocks)
+	totalBlocks := len(AllBlocks())
 	if totalBlocks == 0 {
 		return ""
 	}
-	return GetBlockchain().blocks[totalBlocks-1].Hash
+	return AllBlocks()[totalBlocks-1].Hash
 }
 
 func createBlock(data string) *Block {

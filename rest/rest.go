@@ -12,58 +12,64 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type urlDescription struct {
-	URL         url    `json:"url"`
-	Method      string `json:"method"`
-	Description string `json:"description"`
-	Place       string `json:"place,omitempty"`
-}
-
-// get json data step 1
-type addBlockBody struct {
-	Message string
-}
-type url string
-type errorResponse struct {
-	ErrMessage string `json:"errMessage"`
-}
-
 var port string
 
-func (u url) MarshalText() (text []byte, err error) {
+type Message struct {
+	Message string
+}
+
+type URL string
+
+func (u URL) MarshalText() ([]byte, error) {
 	url := fmt.Sprintf("http://localhost%s%s", port, u)
 	return []byte(url), nil
 }
 
+// List of URLs
+type URLDescription struct {
+	URL         URL    `json:"url"`
+	Method      string `json:"method"`
+	Description string `json:"description"`
+	Payload     string `json:"payload,omitempty"`
+}
+
+func (u URLDescription) String() string {
+	return "Hello I am the URL Description"
+}
+
 func documentation(rw http.ResponseWriter, r *http.Request) {
-	data := []urlDescription{
+	data := []URLDescription{
 		{
-			URL:         url("/"),
+			URL:         URL("/"),
 			Method:      "GET",
-			Description: "show description doc",
+			Description: "See Documentation",
 		},
 		{
-			URL:         url("/blocks"),
+			URL:         URL("/blocks"),
 			Method:      "GET",
-			Description: "See All blocks",
-			Place:       "body:string",
+			Description: "Get All Block",
 		},
 		{
-			URL:         url("/blocks"),
+			URL:         URL("/blocks"),
 			Method:      "POST",
-			Description: "add blocks",
-			Place:       "body:string",
+			Description: "Add a Block",
+			Payload:     "data:string",
 		},
 		{
-			URL:         url("/blocks/{height}"),
-			Method:      "GET",
-			Description: "See A Block",
+			URL:         URL("/blocks/{height}"),
+			Method:      "POST",
+			Description: "Get a Block",
 		},
 	}
+	rw.Header().Add("Content-Type", "application/json")
+	// simple version
 	json.NewEncoder(rw).Encode(data)
-
-	// b, err := json.Marshal(data)
-	// rw.Write(b)
+	/*
+		something hard version
+		b, err := json.Marshal(data)
+		utils.HandleErr(err)
+		fmt.Fprintf(rw, "%s", b)
+	*/
 }
 
 func blocks(rw http.ResponseWriter, r *http.Request) {
@@ -71,30 +77,27 @@ func blocks(rw http.ResponseWriter, r *http.Request) {
 	case "GET":
 		json.NewEncoder(rw).Encode(blockchain.AllBlocks())
 	case "POST":
-		// Get the json type data for client
-		// step 2
-		var addBlockBody addBlockBody
-		utils.CheckErr(json.NewDecoder(r.Body).Decode(&addBlockBody))
-		blockchain.GetBlockchain().AddBlock(addBlockBody.Message)
+		var message Message
+		utils.HandleErr(json.NewDecoder(r.Body).Decode(&message))
+		blockchain.GetBlockchain().AddBlock(message.Message)
 		rw.WriteHeader(http.StatusCreated)
 	}
 }
 
-func block(rw http.ResponseWriter, r *http.Request) {
+func getBlock(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	height, err := strconv.Atoi(vars["height"])
-	utils.CheckErr(err)
-	block, err := blockchain.GetBlockchain().GetBlock(height)
-	encoder := json.NewEncoder(rw)
+	id, err := strconv.Atoi(vars["height"])
+	utils.HandleErr(err)
 
+	block, err := blockchain.GetBlockchain().GetBlock(id)
 	if err == blockchain.ErrNotFound {
-		encoder.Encode(errorResponse{fmt.Sprint(err)})
+		json.NewEncoder(rw).Encode(fmt.Sprint(err))
 	} else {
-		encoder.Encode(block)
+		json.NewEncoder(rw).Encode(block)
 	}
 }
 
-func jsonContentTypeMiddleware(next http.Handler) http.Handler {
+func writeContentTypeMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 		rw.Header().Add("Content-Type", "application/json")
 		next.ServeHTTP(rw, r)
@@ -102,13 +105,11 @@ func jsonContentTypeMiddleware(next http.Handler) http.Handler {
 }
 
 func Start(aPort int) {
-	// NewServeMux url과 handler를 매핑해줌 (dispatcherServlet)
-	port = fmt.Sprintf(":%d", aPort)
 	router := mux.NewRouter()
-	router.Use(jsonContentTypeMiddleware)
+	port = fmt.Sprintf(":%d", aPort)
 	router.HandleFunc("/", documentation).Methods("GET")
 	router.HandleFunc("/blocks", blocks).Methods("GET", "POST")
-	router.HandleFunc("/blocks/{height:[0-9]+}", block).Methods("GET")
-	fmt.Printf("Listening on http://localhost%s\n", port)
+	router.HandleFunc("/blocks/{height:[0-9]+}", getBlock).Methods("GET")
+	fmt.Printf("Listening Server http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, router))
 }
