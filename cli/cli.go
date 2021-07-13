@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/goLangCoin/explorer"
 	"github.com/goLangCoin/rest"
@@ -15,7 +16,7 @@ func usage() {
 	fmt.Printf("-Rport : Set the PORT of the REST API server\n\n")
 	fmt.Printf("-Eport : Set the PORT of the explorer server\n\n")
 	fmt.Printf("-mode : Choose between 'html' and 'rest', 'dual' is run REST API(4000) and explorer(4001)\n\n")
-	os.Exit(0)
+	runtime.Goexit() // 모든 함수를 종료해주지만 그전에 defer를 실행시켜줌
 }
 
 func Start() {

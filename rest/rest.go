@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 
 	"github.com/goLangCoin/blockchain"
 	"github.com/goLangCoin/utils"
@@ -45,6 +44,11 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 			Description: "See Documentation",
 		},
 		{
+			URL:         URL("/status"),
+			Method:      "GET",
+			Description: "See the Status of the Blockchain",
+		},
+		{
 			URL:         URL("/blocks"),
 			Method:      "GET",
 			Description: "Get All Block",
@@ -56,7 +60,7 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 			Payload:     "data:string",
 		},
 		{
-			URL:         URL("/blocks/{height}"),
+			URL:         URL("/blocks/{hash}"),
 			Method:      "POST",
 			Description: "Get a Block",
 		},
@@ -75,21 +79,20 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 func blocks(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		json.NewEncoder(rw).Encode(blockchain.AllBlocks())
+		json.NewEncoder(rw).Encode(blockchain.Blockchain().Blocks())
 	case "POST":
 		var message Message
 		utils.HandleErr(json.NewDecoder(r.Body).Decode(&message))
-		blockchain.GetBlockchain().AddBlock(message.Message)
+		blockchain.Blockchain().AddBlock(message.Message)
 		rw.WriteHeader(http.StatusCreated)
 	}
 }
 
 func getBlock(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["height"])
-	utils.HandleErr(err)
+	hash := vars["hash"]
 
-	block, err := blockchain.GetBlockchain().GetBlock(id)
+	block, err := blockchain.FindBlock(hash)
 	if err == blockchain.ErrNotFound {
 		json.NewEncoder(rw).Encode(fmt.Sprint(err))
 	} else {
@@ -104,12 +107,18 @@ func writeContentTypeMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func status(rw http.ResponseWriter, r *http.Request) {
+	json.NewEncoder(rw).Encode(blockchain.Blockchain())
+}
+
 func Start(aPort int) {
 	router := mux.NewRouter()
 	port = fmt.Sprintf(":%d", aPort)
+	router.Use(writeContentTypeMiddleware)
 	router.HandleFunc("/", documentation).Methods("GET")
+	router.HandleFunc("/status", status).Methods("GET")
 	router.HandleFunc("/blocks", blocks).Methods("GET", "POST")
-	router.HandleFunc("/blocks/{height:[0-9]+}", getBlock).Methods("GET")
+	router.HandleFunc("/blocks/{hash:[0-9a-f]+}", getBlock).Methods("GET")
 	fmt.Printf("Listening Server http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, router))
 }

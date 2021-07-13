@@ -21,7 +21,7 @@ type homeData struct {
 func home(rw http.ResponseWriter, r *http.Request) {
 	// template.Must => err를 체크해줌
 	// tmpl := template.Must(template.ParseFiles("templates/pages/home.gohtml"))
-	data := homeData{"Home", blockchain.AllBlocks()}
+	data := homeData{"Home", nil}
 	templates.ExecuteTemplate(rw, "home.gohtml", data)
 }
 
@@ -33,7 +33,7 @@ func add(rw http.ResponseWriter, r *http.Request) {
 		// Form 값을 채워줌
 		r.ParseForm()
 		data := r.Form.Get("blockData")
-		blockchain.GetBlockchain().AddBlock(data)
+		blockchain.Blockchain().AddBlock(data)
 		http.Redirect(rw, r, "/", http.StatusPermanentRedirect)
 	}
 }
