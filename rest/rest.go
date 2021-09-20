@@ -8,13 +8,32 @@ import (
 
 	"github.com/goLangCoin/blockchain"
 	"github.com/goLangCoin/utils"
+	"github.com/goLangCoin/wallet"
 	"github.com/gorilla/mux"
 )
 
 var port string
 
+type addTxPayload struct {
+	To     string `json:"to"`
+	Amount int    `json:"amount"`
+}
+
+type balanceResponse struct {
+	Address string `json:"address"`
+	Balance int    `json:"balance"`
+}
+
 type Message struct {
 	Message string
+}
+
+type errorResponse struct {
+	ErrorMessage string `json:"errorMessage"`
+}
+
+type myWalletResponse struct {
+	Address string `json:"address"`
 }
 
 type URL string
@@ -64,6 +83,11 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 			Method:      "POST",
 			Description: "Get a Block",
 		},
+		{
+			URL:         URL("/balance/{address}"),
+			Method:      "GET",
+			Description: "Get TxOuts for an Address",
+		},
 	}
 	rw.Header().Add("Content-Type", "application/json")
 	// simple version
@@ -79,11 +103,9 @@ func documentation(rw http.ResponseWriter, r *http.Request) {
 func blocks(rw http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		json.NewEncoder(rw).Encode(blockchain.Blockchain().Blocks())
+		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blocks(blockchain.Blockchain())))
 	case "POST":
-		var message Message
-		utils.HandleErr(json.NewDecoder(r.Body).Decode(&message))
-		blockchain.Blockchain().AddBlock(message.Message)
+		blockchain.Blockchain().AddBlock()
 		rw.WriteHeader(http.StatusCreated)
 	}
 }
@@ -91,10 +113,9 @@ func blocks(rw http.ResponseWriter, r *http.Request) {
 func getBlock(rw http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	hash := vars["hash"]
-
 	block, err := blockchain.FindBlock(hash)
 	if err == blockchain.ErrNotFound {
-		json.NewEncoder(rw).Encode(fmt.Sprint(err))
+		json.NewEncoder(rw).Encode(errorResponse{fmt.Sprint(err)})
 	} else {
 		json.NewEncoder(rw).Encode(block)
 	}
@@ -111,6 +132,47 @@ func status(rw http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(rw).Encode(blockchain.Blockchain())
 }
 
+func balance(rw http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	address := vars["address"]
+	// queyr URL 받는법
+	total := r.URL.Query().Get("total")
+	switch total {
+	case "true":
+		amount := blockchain.BalanceByAddress(address, blockchain.Blockchain())
+		json.NewEncoder(rw).Encode(balanceResponse{address, amount})
+	default:
+		// fmt.Println(blockchain.UTxOutsByAddress(address, blockchain.Blockchain()))
+		utils.HandleErr(json.NewEncoder(rw).
+			Encode(blockchain.UTxOutsByAddress(address, blockchain.Blockchain())))
+	}
+
+}
+
+func mempool(rw http.ResponseWriter, r *http.Request) {
+	utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Mempool.Txs))
+}
+
+func transactions(rw http.ResponseWriter, r *http.Request) {
+	var payload addTxPayload
+	utils.HandleErr(json.NewDecoder(r.Body).Decode(&payload))
+	err := blockchain.Mempool.AddTx(payload.To, payload.Amount)
+	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(rw).Encode(errorResponse{err.Error()})
+		return
+	}
+	rw.WriteHeader(http.StatusCreated)
+}
+
+func myWallet(rw http.ResponseWriter, r *http.Request) {
+	address := wallet.Wallet().Address
+	// json.NewEncoder(rw).Encode(myWalletResponse{address})
+	json.NewEncoder(rw).Encode(struct {
+		Address string `json:"address"`
+	}{address}) // anonymous struct
+}
+
 func Start(aPort int) {
 	router := mux.NewRouter()
 	port = fmt.Sprintf(":%d", aPort)
@@ -119,6 +181,10 @@ func Start(aPort int) {
 	router.HandleFunc("/status", status).Methods("GET")
 	router.HandleFunc("/blocks", blocks).Methods("GET", "POST")
 	router.HandleFunc("/blocks/{hash:[0-9a-f]+}", getBlock).Methods("GET")
+	router.HandleFunc("/balance/{address}", balance).Methods("GET")
+	router.HandleFunc("/mempool", mempool).Methods("GET")
+	router.HandleFunc("/wallet", myWallet).Methods("GET")
+	router.HandleFunc("/transactions", transactions).Methods("POST")
 	fmt.Printf("Listening Server http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, router))
 }

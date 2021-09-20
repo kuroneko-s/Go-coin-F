@@ -28,19 +28,36 @@ func (b *blockchain) restore(data []byte) {
 	utils.FromBytes(b, data)
 }
 
-func (b *blockchain) persist() {
+func persistBlockchain(b *blockchain) {
 	db.SaveBlockchain(utils.ToBytes(b))
 }
 
-func (b *blockchain) AddBlock(data string) {
-	block := createBlock(data, b.NewestHash, b.Height)
+func Txs(b *blockchain) []*Tx {
+	var txs []*Tx
+	for _, block := range Blocks(b) {
+		txs = append(txs, block.Transactions...)
+	}
+	return txs
+}
+
+func FindTx(b *blockchain, targetId string) *Tx {
+	for _, tx := range Txs(b) {
+		if tx.Id == targetId {
+			return tx
+		}
+	}
+	return nil
+}
+
+func (b *blockchain) AddBlock() {
+	block := createBlock(b.NewestHash, b.Height+1, getDifficulty(b))
 	b.NewestHash = block.Hash
 	b.Height = block.Height
 	b.CurrentDifficulty = block.Difficulty
-	b.persist()
+	persistBlockchain(b)
 }
 
-func (b *blockchain) Blocks() []*Block {
+func Blocks(b *blockchain) []*Block {
 	var blocks []*Block
 	hashCursor := b.NewestHash
 	for {
@@ -55,14 +72,54 @@ func (b *blockchain) Blocks() []*Block {
 	return blocks
 }
 
+func UTxOutsByAddress(address string, b *blockchain) []*UTxOut {
+	var uTxOuts []*UTxOut
+	creatorTxs := make(map[string]bool)
+
+	for _, block := range Blocks(b) {
+		for _, tx := range block.Transactions {
+			for _, input := range tx.TxIns {
+				if input.Sigunature == "COINBASE" {
+					break
+				}
+				if FindTx(b, input.TxID).TxOuts[input.Index].Address == address {
+					creatorTxs[input.TxID] = true
+				}
+			}
+			for index, output := range tx.TxOuts {
+				if output.Address == address {
+					if _, ok := creatorTxs[tx.Id]; !ok {
+						uTxOut := &UTxOut{tx.Id, index, output.Amount}
+						if !isOnMempool(uTxOut) {
+							uTxOuts = append(uTxOuts, uTxOut)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return uTxOuts
+}
+
+func BalanceByAddress(address string, b *blockchain) int {
+	txOuts := UTxOutsByAddress(address, b)
+	var amount int
+	for _, txOut := range txOuts {
+		amount += txOut.Amount
+	}
+
+	return amount
+}
+
 // 난이도 재조정
-func (b *blockchain) recalculateDifficulty() int {
+func recalculateDifficulty(b *blockchain) int {
 	// 5개 생성하는데에 10분 걸려야함.
 	// 기대값 - 2분에 한개 생성, 5개 생성시 주기 계산해서 난이도 조정
 	// 가장 최근 블럭 가져오고
 	// 이전 블럭 가져옴 ( 5번전꺼 기준이니깐)
 	// 최근 - (최근-5)에 대한 값을 구해서 시간을 구한다.
-	allBlocks := b.Blocks()
+	allBlocks := Blocks(b)
 	newestBlock := allBlocks[0]                                                         // 가장 최근 블럭
 	lastRecalculatedBlock := allBlocks[difficultyInterval-1]                            // 가장 최근 재설정된 블럭
 	actualTime := (newestBlock.Timestamp / 60) - (lastRecalculatedBlock.Timestamp / 60) // 5개를 생성하는데 걸린 시간 (분)
@@ -75,13 +132,13 @@ func (b *blockchain) recalculateDifficulty() int {
 	return b.CurrentDifficulty
 }
 
-func (b *blockchain) difficulty() int {
+func getDifficulty(b *blockchain) int {
 	// bicoin checks in created 2016
 	if b.Height == 0 {
 		return defaultDifficulty // default
 	} else if b.Height%difficultyInterval == 0 {
 		// 5개마다 체크해서 난이도 재조정
-		return b.recalculateDifficulty()
+		return recalculateDifficulty(b)
 	}
 	// 이전 블럭의 difficulty를 그대로 가져옴
 	return b.CurrentDifficulty
@@ -89,20 +146,19 @@ func (b *blockchain) difficulty() int {
 
 // Singleton pattern
 func Blockchain() *blockchain {
-	if b == nil {
-		once.Do(func() {
-			// 맨처음엔 마지막 블럭이 어떤값을 이루고 있는지를 모르고잇으니깐
-			b = &blockchain{
-				Height: 0,
-			}
-			checkpoint := db.Checkpoint()
-			if checkpoint == nil {
-				b.AddBlock("Genesis Block")
-			} else {
-				fmt.Println("Restoring...")
-				b.restore(checkpoint)
-			}
-		})
-	}
+	once.Do(func() {
+		// 맨처음엔 마지막 블럭이 어떤값을 이루고 있는지를 모르고잇으니깐
+		b = &blockchain{
+			Height: 0,
+		}
+		checkpoint := db.Checkpoint()
+		if checkpoint == nil {
+			b.AddBlock()
+		} else {
+			fmt.Println("Restoring...")
+			b.restore(checkpoint)
+		}
+	})
+
 	return b
 }
