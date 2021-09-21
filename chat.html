@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+</head>
+<body>
+    <form id="msg-form" action="/ws" method="GET">
+        <input id="msg-input" type="text" placeholder="send message" maxlength="300"/>
+        <button type="submit">Send</button>
+    </form>
+    <span id="msg-receive"></span>
+    <script>
+        const form = document.getElementById('msg-form')
+        const input = document.getElementById('msg-input')
+        const span = document.getElementById('msg-receive')
+        const socket = new WebSocket("ws://localhost:4000/ws")
+        socket.addEventListener('close', () => console.log("closed"))
+        socket.addEventListener('message', (e) => {
+            span.innerHTML = span.innerHTML + `<br/> ${e.data}`
+        })
+
+        form.addEventListener('submit', (e)=> {
+            e.preventDefault();
+            socket.send(input.value)
+            input.value = ''
+        })
+    </script>
+</body>
+</html>
