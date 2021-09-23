@@ -37,6 +37,10 @@ type myWalletResponse struct {
 	Address string `json:"address"`
 }
 
+type addPeerPayload struct {
+	Address, Port string
+}
+
 type URL string
 
 func (u URL) MarshalText() ([]byte, error) {
@@ -178,6 +182,20 @@ func transactions(rw http.ResponseWriter, r *http.Request) {
 	rw.WriteHeader(http.StatusCreated)
 }
 
+func peers(rw http.ResponseWriter, r *http.Request) {
+	fmt.Println("called function peers")
+	switch r.Method {
+	case "GET":
+		json.NewEncoder(rw).Encode(p2p.Peers)
+		rw.WriteHeader(http.StatusOK)
+	case "POST":
+		var payload addPeerPayload
+		utils.HandleErr(json.NewDecoder(r.Body).Decode(&payload))
+		p2p.AddPeer(payload.Address, payload.Port, port[1:])
+		rw.WriteHeader(http.StatusOK)
+	}
+}
+
 func myWallet(rw http.ResponseWriter, r *http.Request) {
 	address := wallet.Wallet().Address
 	// json.NewEncoder(rw).Encode(myWalletResponse{address})
@@ -198,7 +216,10 @@ func Start(aPort int) {
 	router.HandleFunc("/mempool", mempool).Methods("GET")
 	router.HandleFunc("/wallet", myWallet).Methods("GET")
 	router.HandleFunc("/transactions", transactions).Methods("POST")
+
 	router.HandleFunc("/ws", p2p.Upgrade).Methods("GET")
+	router.HandleFunc("/peers", peers).Methods("GET", "POST")
+
 	fmt.Printf("Listening Server http://localhost%s\n", port)
 	log.Fatal(http.ListenAndServe(port, router))
 }
