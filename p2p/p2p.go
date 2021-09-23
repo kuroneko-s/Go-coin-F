@@ -25,9 +25,9 @@ func Upgrade(w http.ResponseWriter, r *http.Request) {
 	utils.HandleErr(err)
 	fmt.Println(r.RemoteAddr)
 
-	initPeer(conn, ip, openPort)
+	p := initPeer(conn, ip, openPort)
 	time.Sleep(10 * time.Second)
-	conn.WriteMessage(websocket.TextMessage, []byte("Hello from port 3000"))
+	p.inbox <- []byte("Hello from port 3000")
 }
 
 // 요청하는 Peer가 사용
@@ -38,7 +38,7 @@ func AddPeer(address, port, openPort string) {
 	fmt.Printf("ws://%s:%s/ws\n", address, port)
 	conn, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("ws://%s:%s/ws?openPort=%s", address, port, openPort), nil)
 	utils.HandleErr(err)
-	initPeer(conn, address, port)
+	p := initPeer(conn, address, port)
 	time.Sleep(10 * time.Second)
-	conn.WriteMessage(websocket.TextMessage, []byte("Hello from port 4000"))
+	p.inbox <- []byte("Hello from 4000!")
 }

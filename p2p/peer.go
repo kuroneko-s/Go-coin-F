@@ -33,11 +33,14 @@ func (p *peer) write() {
 
 func initPeer(conn *websocket.Conn, address, port string) *peer {
 	p := &peer{
-		conn: conn,
+		conn:  conn,
+		inbox: make(chan []byte),
 	}
 	key := fmt.Sprintf("%s:%s", address, port)
-	Peers[key] = p
-	go p.read()
 
+	go p.read()
+	go p.write()
+
+	Peers[key] = p
 	return p
 }
