@@ -186,7 +186,7 @@ func peers(rw http.ResponseWriter, r *http.Request) {
 	fmt.Println("called function peers")
 	switch r.Method {
 	case "GET":
-		json.NewEncoder(rw).Encode(p2p.Peers)
+		json.NewEncoder(rw).Encode(p2p.AllPeers(&p2p.Peers))
 		// rw.WriteHeader(http.StatusOK)
 	case "POST":
 		var payload addPeerPayload
