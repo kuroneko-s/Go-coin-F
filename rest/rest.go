@@ -183,7 +183,6 @@ func transactions(rw http.ResponseWriter, r *http.Request) {
 }
 
 func peers(rw http.ResponseWriter, r *http.Request) {
-	fmt.Println("called function peers")
 	switch r.Method {
 	case "GET":
 		json.NewEncoder(rw).Encode(p2p.AllPeers(&p2p.Peers))

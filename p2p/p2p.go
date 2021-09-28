@@ -3,7 +3,6 @@ package p2p
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/goLangCoin/utils"
 	"github.com/gorilla/websocket"
@@ -26,7 +25,6 @@ func Upgrade(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(r.RemoteAddr)
 
 	initPeer(conn, ip, openPort)
-	time.Sleep(10 * time.Second)
 }
 
 // 요청하는 Peer가 사용
@@ -37,6 +35,6 @@ func AddPeer(address, port, openPort string) {
 	fmt.Printf("ws://%s:%s/ws\n", address, port)
 	conn, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("ws://%s:%s/ws?openPort=%s", address, port, openPort), nil)
 	utils.HandleErr(err)
-	initPeer(conn, address, port)
-	time.Sleep(10 * time.Second)
+	p := initPeer(conn, address, port)
+	sendNEwestBlock(p) // 연결에 성공했을 경우 Three Hand Shake처럼 가장 최신의 Block에 대한 값을 보냄
 }
