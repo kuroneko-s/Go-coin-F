@@ -36,5 +36,5 @@ func AddPeer(address, port, openPort string) {
 	conn, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("ws://%s:%s/ws?openPort=%s", address, port, openPort), nil)
 	utils.HandleErr(err)
 	p := initPeer(conn, address, port)
-	sendNEwestBlock(p) // 연결에 성공했을 경우 Three Hand Shake처럼 가장 최신의 Block에 대한 값을 보냄
+	sendNewestBlock(p) // 연결에 성공했을 경우 Three Hand Shake처럼 가장 최신의 Block에 대한 값을 보냄
 }
