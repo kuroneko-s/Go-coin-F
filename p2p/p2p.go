@@ -20,9 +20,9 @@ func Upgrade(w http.ResponseWriter, r *http.Request) {
 		return openPort != "" && ip != ""
 	}
 
+	fmt.Printf("%s wants an upgrade\n", openPort)
 	conn, err := upgrader.Upgrade(w, r, nil)
 	utils.HandleErr(err)
-	fmt.Println(r.RemoteAddr)
 
 	initPeer(conn, ip, openPort)
 }
@@ -32,7 +32,7 @@ func AddPeer(address, port, openPort string) {
 	// goLang에서 webSocket을 연결할땐 dialer가 필요하다. (코드상)
 	// Header에다가 Authenticate tocken 같은거 넣어서 Upgrade시 인증받을 수 있게 진행할 수 있음
 	// from :4000 -> :3000
-	fmt.Printf("ws://%s:%s/ws\n", address, port)
+	fmt.Printf("%s want to connect to port %s\n", openPort, port)
 	conn, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("ws://%s:%s/ws?openPort=%s", address, port, openPort), nil)
 	utils.HandleErr(err)
 	p := initPeer(conn, address, port)

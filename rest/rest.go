@@ -140,7 +140,7 @@ func writeContentTypeMiddleware(next http.Handler) http.Handler {
 
 func loggerMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		fmt.Println(r.URL)
+		fmt.Printf("%s\n", r.URL)
 		next.ServeHTTP(rw, r)
 	})
 }

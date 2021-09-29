@@ -89,3 +89,13 @@ func Block(hash string) []byte {
 func Close() {
 	DB().Close()
 }
+
+func EmptyBlocks() {
+	// 블록들에 대한 정보를 업데이트 할 때 DB를 비워둬야 해서 싹다 지우는 코드
+	DB().Update(func(t *bolt.Tx) error {
+		utils.HandleErr(t.DeleteBucket([]byte(blocksBucket)))
+		_, err := t.CreateBucket([]byte(blocksBucket))
+		utils.HandleErr(err)
+		return nil
+	})
+}

@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"net/http"
 	"sync"
 
 	"github.com/goLangCoin/db"
@@ -18,6 +19,7 @@ type blockchain struct {
 	NewestHash        string `json:"newestHash"`
 	Height            int    `json:"height"`
 	CurrentDifficulty int    `json:"currentdifficulty"`
+	m                 sync.Mutex
 }
 
 var b *blockchain
@@ -57,6 +59,8 @@ func (b *blockchain) AddBlock() {
 }
 
 func Blocks(b *blockchain) []*Block {
+	b.m.Lock()
+	defer b.m.Unlock()
 	var blocks []*Block
 	hashCursor := b.NewestHash
 	for {
@@ -143,6 +147,10 @@ func getDifficulty(b *blockchain) int {
 	return b.CurrentDifficulty
 }
 
+func Status(b *blockchain, rw http.ResponseWriter) {
+
+}
+
 // Singleton pattern
 func Blockchain() *blockchain {
 	once.Do(func() {
@@ -159,4 +167,20 @@ func Blockchain() *blockchain {
 	})
 
 	return b
+}
+
+func (b *blockchain) Replace(newBlocks []*Block) {
+	b.m.Lock()
+	defer b.m.Unlock()
+	// blockchain에 새로운 정보들을 넣고
+	b.Height = len(newBlocks)
+	b.CurrentDifficulty = newBlocks[0].Difficulty
+	b.NewestHash = newBlocks[0].Hash
+	persistBlockchain(b)
+	// 기존의 block들은 싹다 지우고 다시 처음부터 넣어줘야하니깐 비우는 함수 호출
+	db.EmptyBlocks()
+
+	for _, block := range newBlocks {
+		persistBlock(block)
+	}
 }
