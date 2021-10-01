@@ -115,7 +115,8 @@ func blocks(rw http.ResponseWriter, r *http.Request) {
 	case "GET":
 		utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Blocks(blockchain.Blockchain())))
 	case "POST":
-		blockchain.Blockchain().AddBlock()
+		newBlock := blockchain.Blockchain().AddBlock()
+		p2p.BroadcaseNewBlock(newBlock)
 		rw.WriteHeader(http.StatusCreated)
 	}
 }
@@ -146,7 +147,7 @@ func loggerMiddleware(next http.Handler) http.Handler {
 }
 
 func status(rw http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(rw).Encode(blockchain.Blockchain())
+	blockchain.Status(blockchain.Blockchain(), rw)
 }
 
 func balance(rw http.ResponseWriter, r *http.Request) {
@@ -167,18 +168,19 @@ func balance(rw http.ResponseWriter, r *http.Request) {
 }
 
 func mempool(rw http.ResponseWriter, r *http.Request) {
-	utils.HandleErr(json.NewEncoder(rw).Encode(blockchain.Mempool.Txs))
+	blockchain.GetTxs(blockchain.Mempool(), rw)
 }
 
 func transactions(rw http.ResponseWriter, r *http.Request) {
 	var payload addTxPayload
 	utils.HandleErr(json.NewDecoder(r.Body).Decode(&payload))
-	err := blockchain.Mempool.AddTx(payload.To, payload.Amount)
+	tx, err := blockchain.Mempool().AddTx(payload.To, payload.Amount)
 	if err != nil {
 		rw.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(rw).Encode(errorResponse{err.Error()})
 		return
 	}
+	p2p.BroadcastNewTx(tx)
 	rw.WriteHeader(http.StatusCreated)
 }
 

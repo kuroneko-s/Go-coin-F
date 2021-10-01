@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/goLangCoin/blockchain"
 	"github.com/goLangCoin/utils"
 	"github.com/gorilla/websocket"
 )
@@ -37,4 +38,22 @@ func AddPeer(address, port, openPort string) {
 	utils.HandleErr(err)
 	p := initPeer(conn, address, port)
 	sendNewestBlock(p) // 연결에 성공했을 경우 Three Hand Shake처럼 가장 최신의 Block에 대한 값을 보냄
+}
+
+func BroadcaseNewBlock(b *blockchain.Block) {
+	Peers.m.Lock()
+	defer Peers.m.Unlock()
+
+	for _, p := range Peers.v {
+		notifyNewBlock(b, p)
+	}
+}
+
+func BroadcastNewTx(tx *blockchain.Tx) {
+	Peers.m.Lock()
+	defer Peers.m.Unlock()
+
+	for _, p := range Peers.v {
+		notifyNewTx(tx, p)
+	}
 }

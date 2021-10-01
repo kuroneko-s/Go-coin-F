@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"encoding/json"
 	"net/http"
 	"sync"
 
@@ -50,17 +51,20 @@ func FindTx(b *blockchain, targetId string) *Tx {
 	return nil
 }
 
-func (b *blockchain) AddBlock() {
+func (b *blockchain) AddBlock() *Block {
 	block := createBlock(b.NewestHash, b.Height+1, getDifficulty(b))
 	b.NewestHash = block.Hash
 	b.Height = block.Height
 	b.CurrentDifficulty = block.Difficulty
 	persistBlockchain(b)
+
+	return block
 }
 
 func Blocks(b *blockchain) []*Block {
 	b.m.Lock()
 	defer b.m.Unlock()
+
 	var blocks []*Block
 	hashCursor := b.NewestHash
 	for {
@@ -148,7 +152,10 @@ func getDifficulty(b *blockchain) int {
 }
 
 func Status(b *blockchain, rw http.ResponseWriter) {
+	b.m.Lock()
+	defer b.m.Unlock()
 
+	utils.HandleErr(json.NewEncoder(rw).Encode(b))
 }
 
 // Singleton pattern
@@ -172,6 +179,7 @@ func Blockchain() *blockchain {
 func (b *blockchain) Replace(newBlocks []*Block) {
 	b.m.Lock()
 	defer b.m.Unlock()
+
 	// blockchain에 새로운 정보들을 넣고
 	b.Height = len(newBlocks)
 	b.CurrentDifficulty = newBlocks[0].Difficulty
@@ -183,4 +191,18 @@ func (b *blockchain) Replace(newBlocks []*Block) {
 	for _, block := range newBlocks {
 		persistBlock(block)
 	}
+}
+
+func (b *blockchain) AddPeerBlock(block *Block) {
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	b.Height += 1
+	b.CurrentDifficulty = block.Difficulty
+	b.NewestHash = block.Hash
+
+	persistBlockchain(b)
+	persistBlock(block)
+
+	// mempool
 }
