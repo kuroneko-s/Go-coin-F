@@ -29,7 +29,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request) {
 }
 
 // 요청하는 Peer가 사용
-func AddPeer(address, port, openPort string) {
+func AddPeer(address, port, openPort string, broadcast bool) {
 	// goLang에서 webSocket을 연결할땐 dialer가 필요하다. (코드상)
 	// Header에다가 Authenticate tocken 같은거 넣어서 Upgrade시 인증받을 수 있게 진행할 수 있음
 	// from :4000 -> :3000
@@ -37,6 +37,10 @@ func AddPeer(address, port, openPort string) {
 	conn, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("ws://%s:%s/ws?openPort=%s", address, port, openPort), nil)
 	utils.HandleErr(err)
 	p := initPeer(conn, address, port)
+	if !broadcast {
+		broadcastNewPeer(p)
+		return
+	}
 	sendNewestBlock(p) // 연결에 성공했을 경우 Three Hand Shake처럼 가장 최신의 Block에 대한 값을 보냄
 }
 
@@ -55,5 +59,17 @@ func BroadcastNewTx(tx *blockchain.Tx) {
 
 	for _, p := range Peers.v {
 		notifyNewTx(tx, p)
+	}
+}
+
+func broadcastNewPeer(newPeer *peer) {
+	Peers.m.Lock()
+	defer Peers.m.Unlock()
+
+	for k, p := range Peers.v {
+		if k != newPeer.key {
+			payload := fmt.Sprintf("%s:%s", newPeer.key, p.port)
+			notifyNewPeer(payload, p)
+		}
 	}
 }

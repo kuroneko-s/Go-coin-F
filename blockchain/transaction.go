@@ -17,7 +17,7 @@ const (
 
 //mempool -> 거래가 성립되지 않는 주소가 대기하는 값
 type mempool struct {
-	Txs []*Tx
+	Txs map[string]*Tx
 	m   sync.Mutex
 }
 
@@ -26,7 +26,9 @@ var memOnce sync.Once
 
 func Mempool() *mempool {
 	memOnce.Do(func() {
-		m = &mempool{}
+		m = &mempool{
+			Txs: make(map[string]*Tx),
+		}
 	})
 	return m
 }
@@ -164,7 +166,7 @@ func (m *mempool) AddTx(to string, amount int) (*Tx, error) {
 	if err != nil {
 		return nil, err
 	}
-	m.Txs = append(m.Txs, tx)
+	m.Txs[tx.Id] = tx
 	return tx, nil
 }
 
@@ -172,9 +174,13 @@ func (m *mempool) AddTx(to string, amount int) (*Tx, error) {
 func (m *mempool) TxToConfirm() []*Tx {
 	// tx를 다 받아서 처리하고 mempool을 비워준다.
 	coinbase := makeCoinbaseTx(wallet.Wallet().Address)
-	txs := m.Txs
+
+	var txs []*Tx
+	for _, tx := range m.Txs {
+		txs = append(txs, tx)
+	}
 	txs = append(txs, coinbase)
-	m.Txs = nil
+	m.Txs = make(map[string]*Tx)
 	return txs
 }
 
@@ -189,5 +195,5 @@ func (m *mempool) AddPeerTx(tx *Tx) {
 	m.m.Lock()
 	defer m.m.Unlock()
 
-	m.Txs = append(m.Txs, tx)
+	m.Txs[tx.Id] = tx
 }
