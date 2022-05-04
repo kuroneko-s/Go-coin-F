@@ -1,3 +1,14 @@
+#노마드 코인     
+https://nomadcoders.co/nomadcoin/lobby      
+노마드 코더님의 인터넷 강의
+
+        
+                
+                
+                
+                
+                
+<hr/>
 Tx
 TxIn[]
 이 거래를 실행하기 이전의 금액
